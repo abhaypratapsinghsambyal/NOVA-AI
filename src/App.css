@@ -1,0 +1,188 @@
+body, html {
+  background: #10131a;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+.nova-bg {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0d13 0%, #1a2333 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.5s ease-in-out;
+}
+
+.nova-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.nova-waveform {
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: rgba(0, 20, 30, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  /* Initial state - will be overridden by status classes */
+  box-shadow: 0 0 40px 10px #00ff00, 0 0 80px 30px #00ff00;
+  transition: box-shadow 0.5s ease-in-out;
+}
+
+.nova-title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Orbitron', 'Eurostile', 'Bank Gothic', 'Segoe UI', Arial, sans-serif;
+  font-size: 2.6rem;
+  letter-spacing: 0.25em;
+  color: #00fff7;
+  text-shadow: 0 0 16px #00fff7, 0 0 32px #00fff7;
+  pointer-events: none;
+  user-select: none;
+}
+
+.nova-mic-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,255,247,0.12) 0%, rgba(0,255,247,0.02) 80%, transparent 100%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: opacity 0.3s;
+  z-index: 0;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
+
+.nova-bg.listening {
+  background: linear-gradient(135deg, #0a1a0d 0%, #1a3323 100%); /* Green */
+  animation: pulse-green-bg 2s infinite alternate;
+}
+
+.nova-bg.processing {
+  background: linear-gradient(135deg, #0a131a 0%, #1a2333 100%); /* Green/Blue Mix (Teal) */
+  animation: pulse-teal-bg 2s infinite alternate;
+}
+
+.nova-bg.speaking {
+  background: linear-gradient(135deg, #0a0d1a 0%, #1a2333 100%); /* Pure Blue */
+  animation: pulse-blue-bg 2s infinite alternate;
+}
+
+.nova-waveform.listening {
+  box-shadow: 0 0 60px 10px #00ff00, 0 0 120px 30px #00ff00; /* Green */
+  animation: waveform-pulse-green 1.5s infinite ease-in-out;
+}
+
+.nova-waveform.processing {
+  box-shadow: 0 0 60px 10px #00ffff, 0 0 120px 30px #00ffff; /* Green/Blue Mix (Cyan) */
+  animation: waveform-pulse-cyan 1.5s infinite ease-in-out;
+}
+
+.nova-waveform.speaking {
+  box-shadow: 0 0 60px 10px #0000ff, 0 0 120px 30px #0000ff; /* Pure Blue */
+  animation: waveform-pulse-blue 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-green-bg {
+  from { background: linear-gradient(135deg, #0a1a0d 0%, #1a3323 100%); }
+  to { background: linear-gradient(135deg, #1a3323 0%, #0a1a0d 100%); }
+}
+
+@keyframes pulse-teal-bg {
+  from { background: linear-gradient(135deg, #0a131a 0%, #1a2333 100%); }
+  to { background: linear-gradient(135deg, #1a2333 0%, #0a131a 100%); }
+}
+
+@keyframes pulse-blue-bg {
+  from { background: linear-gradient(135deg, #0a0d1a 0%, #1a2333 100%); }
+  to { background: linear-gradient(135deg, #1a2333 0%, #0a0d1a 100%); }
+}
+
+@keyframes waveform-pulse-green {
+  0% { box-shadow: 0 0 60px 10px #00ff00, 0 0 120px 30px #00ff00; }
+  50% { box-shadow: 0 0 80px 15px #00ff00, 0 0 150px 40px #00ff00; }
+  100% { box-shadow: 0 0 60px 10px #00ff00, 0 0 120px 30px #00ff00; }
+}
+
+@keyframes waveform-pulse-cyan {
+  0% { box-shadow: 0 0 60px 10px #00ffff, 0 0 120px 30px #00ffff; }
+  50% { box-shadow: 0 0 80px 15px #00ffff, 0 0 150px 40px #00ffff; }
+  100% { box-shadow: 0 0 60px 10px #00ffff, 0 0 120px 30px #00ffff; }
+}
+
+@keyframes waveform-pulse-blue {
+  0% { box-shadow: 0 0 60px 10px #0000ff, 0 0 120px 30px #0000ff; }
+  50% { box-shadow: 0 0 80px 15px #0000ff, 0 0 150px 40px #0000ff; }
+  100% { box-shadow: 0 0 60px 10px #0000ff, 0 0 120px 30px #0000ff; }
+}
+
+
+.camera-popup-image {
+  position: fixed;
+  bottom: 20px; /* Adjust position as needed */
+  left: 20px; /* Adjust position as needed */
+  width: 150px; /* Adjust size as needed */
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  opacity: 1;
+  transition: opacity 0.5s ease-in-out;
+  z-index: 1000; /* Ensure it's above other elements */
+}
+
+.camera-popup-image.fade-out {
+  opacity: 0;
+}
+
+
+  .App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
