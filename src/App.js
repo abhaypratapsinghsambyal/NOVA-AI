@@ -6,7 +6,6 @@ import { callGeminiAPI } from './geminiService';
 export default App;
 
 
-const GEMINI_API_KEY = "AIzaSyDQTLxUZTbuS2WrNcoFTh_r8tYQBawja6A";
 
 function App() {
   const [capturedImage, setCapturedImage] = useState(null);
