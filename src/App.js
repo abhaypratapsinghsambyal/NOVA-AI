@@ -273,7 +273,7 @@ function App() {
             setGeneratedImageUrl(generatedImage);
             setShowImageProcessingPopup(false);
           } else {
-            speak(aiResponse);
+            // speak(aiResponse); // Removed incorrect speak call
           }
           speak(aiResponse.aiResponse);
         }
