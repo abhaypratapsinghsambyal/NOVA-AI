@@ -248,7 +248,7 @@ function App() {
             transcript.toLowerCase().includes('camera') ||
             transcript.toLowerCase().includes('picture')) {
 
-          const aiResponse = callGeminiAPI(transcript, capturedImageData);
+          const aiResponse = await callGeminiAPI(transcript, capturedImageData);
           speak(aiResponse);
         } 
       } catch (error) {
