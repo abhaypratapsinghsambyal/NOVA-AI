@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './App.css';
-import { startCamera } from './camera';
+import { startCamera, captureFrame } from './camera';
 import { callGeminiAPI } from './geminiService';
 import { getCurrentUser, logout } from './auth';
 import { initializeSharedMemory } from './memory';
+import { cloudStorage } from './cloudStorage';
 import Login from './Login';
 
 export default App;
@@ -13,6 +14,7 @@ export default App;
 function App() {
   const [capturedImage, setCapturedImage] = useState(null);
   const [isFadingOut, setIsFadingOut] = useState(false);
+  const [isFadingIn, setIsFadingIn] = useState(false);
   const [aiStatus, setAiStatus] = useState('idle'); // 'idle', 'listening', 'processing', 'speaking'
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -78,28 +80,84 @@ function App() {
     if (!isAuthenticated || !('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
+    recognition.continuous = true; // Set to true for continuous listening
     recognition.interimResults = false;
     recognition.lang = 'en-US';
     recognitionRef.current = recognition;
 
     recognition.onstart = () => setAiStatus('listening');
-    recognition.onend = () => setAiStatus('idle');
-    recognition.onerror = () => setAiStatus('idle');
-    recognition.onresult = async (event) => {
-      const transcript = event.results[0][0].transcript;
-      setAiStatus('processing');
-      const { aiResponse, capturedImageData } = await fetchGemini(transcript);
-      setCapturedImage(capturedImageData);
-      speak(aiResponse);
+    // recognition.onend will not be used with continuous = true
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      // Attempt to restart listening on error
+      setAiStatus('idle');
+      // Add a small delay before attempting to restart
+      setTimeout(startListening, 1000);
     };
-    // Start listening if voice is ready
+    recognition.onresult = async (event) => {
+      const transcript = event.results[event.results.length - 1][0].transcript;
+      console.log('Transcript:', transcript);
+      // Stop listening temporarily while processing and speaking
+      recognitionRef.current.stop();
+      setAiStatus('processing');
+
+      let capturedImageData = null;
+      // Check if the user is asking for their camera feed
+      if (transcript.toLowerCase().includes('show me my camera feed') ||
+          transcript.toLowerCase().includes('show me my pic') ||
+          transcript.toLowerCase().includes('show my camera') ||
+          transcript.toLowerCase().includes('show my picture')) {
+        console.log('User requested camera feed.');
+        // Capture the frame
+        capturedImageData = captureFrame();
+        if (capturedImageData) {
+          setCapturedImage(capturedImageData);
+          setIsFadingIn(true); // Start fade in
+        } else {
+          console.warn('Failed to capture frame.');
+        }
+      }
+
+      const { aiResponse } = await fetchGemini(transcript, capturedImageData);
+
+      // Check if the user is asking for the other user's camera feed
+      if (transcript.toLowerCase().includes('show me piram\'s camera feed') ||
+          transcript.toLowerCase().includes('show me piram\'s pic') ||
+          transcript.toLowerCase().includes('show piram\'s camera') ||
+          transcript.toLowerCase().includes('show piram\'s picture')) {
+        speak("I can only access your camera feed at the moment. Cross-device camera access is not yet implemented.");
+      } else if (transcript.toLowerCase().includes('share my camera feed') ||
+                 transcript.toLowerCase().includes('share my pic') ||
+                 transcript.toLowerCase().includes('share my camera') ||
+                 transcript.toLowerCase().includes('share my picture')) {
+        console.log('User requested to share camera feed.');
+        capturedImageData = captureFrame();
+        if (capturedImageData && currentUser) {
+          cloudStorage.saveImageMemory(currentUser.uid, capturedImageData);
+          speak("Okay, I've shared your camera feed.");
+        } else {
+          console.warn('Failed to capture frame or user not logged in.');
+          speak("Sorry, I couldn't share your camera feed right now.");
+        }
+      } else {
+        speak(aiResponse);
+      }
+    };
+
+    // Start listening initially if voice is ready
     if (voiceReady) {
       startListening();
     }
 
+    // Cleanup function to stop recognition when component unmounts or dependencies change
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+
     // eslint-disable-next-line
-  }, [voiceReady, isAuthenticated]);
+  }, [voiceReady, isAuthenticated, aiStatus]); // Added aiStatus to dependencies
 
   // Animate waveform based on audio activity
   function animateWaveform(level) {
@@ -119,9 +177,9 @@ function App() {
     }
   }
 
-  async function fetchGemini(text) {
+  async function fetchGemini(text, imageData = null) {
     // Use the updated callGeminiAPI function
-    return await callGeminiAPI(text);
+    return await callGeminiAPI(text, imageData);
   }
 
   function speak(text) {
@@ -145,6 +203,7 @@ function App() {
     utter.pitch = 1.1;
     utter.onend = () => {
       console.log('Speech synthesis ended. Current status:', aiStatus);
+      setIsFadingIn(false); // End fade in
       setIsFadingOut(true); // Start fade out
       setTimeout(() => {
         setCapturedImage(null); // Clear image after fade out
@@ -204,8 +263,13 @@ function App() {
           <div className="nova-mic-glow" style={{ opacity: aiStatus === 'listening' ? 1 : 0.3 }} />
         </div>
         
-        {capturedImage && (aiStatus === 'speaking' || isFadingOut) && (
-          <img src={capturedImage} alt="Captured from camera" className={`camera-popup-image ${isFadingOut ? 'fade-out' : ''}`} />
+        {capturedImage && (aiStatus === 'speaking' || isFadingOut || isFadingIn) && (
+          <img src={capturedImage} alt="Captured from camera" className={`camera-popup-image ${isFadingOut ? 'fade-out' : (isFadingIn ? 'fade-in' : '')}`} />
+        )}
+
+        {/* Received Image Pop-up */}
+        {receivedImage && (isReceivedImageFadingIn || isReceivedImageFadingOut) && (
+          <img src={receivedImage} alt="Received from other user" className={`camera-popup-image ${isReceivedImageFadingOut ? 'fade-out' : (isReceivedImageFadingIn ? 'fade-in' : '')}`} />
         )}
       </div>
     </div>

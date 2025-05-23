@@ -158,6 +158,33 @@ class CloudStorageService {
       console.error('Failed to clear cloud data:', error);
     }
   }
+
+  // Save image memory to cloud
+  async saveImageMemory(userId, imageData) {
+    const memoryData = {
+      type: 'image',
+      userId: userId,
+      imageData: imageData,
+    };
+    return this.saveSharedMemory(memoryData);
+  }
+
+  // Listen for real-time image memory updates
+  onImageMemoryUpdate(callback) {
+    // Filter for memories of type 'image'
+    onValue(this.memoriesRef, (snapshot) => {
+      const imageMemories = [];
+      snapshot.forEach((childSnapshot) => {
+        const memory = childSnapshot.val();
+        if (memory.type === 'image') {
+          imageMemories.push(memory);
+        }
+      });
+      callback(imageMemories);
+    }, (error) => {
+      console.error('Firebase real-time image update failed:', error);
+    });
+  }
 }
 
 export const cloudStorage = new CloudStorageService();

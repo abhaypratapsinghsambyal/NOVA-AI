@@ -46,7 +46,6 @@ export const getMemoryContext = () => {
   
   // Format shared memory context
   const sharedConversations = sharedMemory.conversations
-    .slice(-10) // Last 10 shared conversations
     .map(conv => `${conv.speaker} (${conv.timestamp}): ${conv.message}`)
     .join('\n');
   
