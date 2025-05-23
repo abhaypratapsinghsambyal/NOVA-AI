@@ -242,15 +242,16 @@ function App() {
 
       try {
         // Use Gemini for all conversational and image/memory queries
-        if (capturedImageData ||
-            transcript.toLowerCase().includes('remember') ||
-            transcript.toLowerCase().includes('memory') ||
-            transcript.toLowerCase().includes('camera') ||
-            transcript.toLowerCase().includes('picture')) {
+        // Call Gemini for any transcript that isn't a camera/share command
+        if (!transcript.toLowerCase().includes('show me my camera') &&
+            !transcript.toLowerCase().includes('show my camera') &&
+            !transcript.toLowerCase().includes('show me my pic') &&
+            !transcript.toLowerCase().includes('share my camera') &&
+            !transcript.toLowerCase().includes('share my pic')) {
 
           const aiResponse = await callGeminiAPI(transcript, capturedImageData);
-          speak(aiResponse);
-        } 
+          speak(aiResponse.aiResponse);
+        }
       } catch (error) {
         console.error('Error processing request:', error);
         speak("Sorry, I encountered an error processing your request.");
