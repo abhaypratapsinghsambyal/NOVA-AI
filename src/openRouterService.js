@@ -1,7 +1,7 @@
 // openRouterService.js - Handles Mistral API calls through OpenRouter
 import { getMemoryContext, addUserMessage, addAIResponse, extractUserInfo } from './memory';
 
-const OPENROUTER_API_KEY = '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'; // Replace with your actual API key
+const OPENROUTER_API_KEY = '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'; // Ensure this is your actual, correct API key
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export async function streamChatResponse(userMessage, onChunk) {
@@ -18,7 +18,7 @@ export async function streamChatResponse(userMessage, onChunk) {
     const memoryContext = getMemoryContext();
     
     const requestBody = {
-      model: "mistralai/mistral-7b-instruct:free",
+      model: "mistralai/devstral-small:free",
       messages: [
         {
           role: "system",
