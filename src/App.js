@@ -19,6 +19,10 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  const [receivedImage, setReceivedImage] = useState(null);
+  const [isReceivedImageFadingIn, setIsReceivedImageFadingIn] = useState(false);
+  const [isReceivedImageFadingOut, setIsReceivedImageFadingOut] = useState(false);
+
   const [audioLevel, setAudioLevel] = useState(0);
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
