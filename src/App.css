@@ -198,8 +198,103 @@ body, html {
 
 .logout-button:hover {
   background: rgba(255, 107, 107, 0.2);
-  border-color: #ff6b6b;
-  transform: translateY(-1px);
+}
+
+/* Image Processing Popup Styles */
+.image-processing-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(16, 19, 26, 0.95); /* Semi-transparent dark background */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000; /* Above other content */
+  backdrop-filter: blur(5px); /* Optional blur effect */
+}
+
+.processing-indicator {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2.5rem;
+  color: #00fff7; /* Futuristic blue-green */
+  text-shadow: 0 0 15px #00fff7, 0 0 30px #00fff7;
+  animation: pulse-text 1.5s infinite alternate;
+}
+
+@keyframes pulse-text {
+  from { opacity: 0.6; text-shadow: 0 0 10px #00fff7; }
+  to { opacity: 1; text-shadow: 0 0 20px #00fff7, 0 0 40px #00fff7; }
+}
+
+/* Generated Image Fullscreen Styles */
+.generated-image-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(16, 19, 26, 0.98); /* Nearly opaque dark background */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000; /* Above pop-up */
+}
+
+.generated-image-fullscreen img {
+  max-width: 90%;
+  max-height: 90%;
+  border: 2px solid #00fff7; /* Futuristic border */
+  box-shadow: 0 0 20px rgba(0, 255, 247, 0.5);
+  object-fit: contain;
+}
+
+.generated-image-fullscreen .close-button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.1); /* Semi-transparent white */
+  border: none;
+  color: #00fff7; /* Futuristic blue-green */
+  font-size: 24px;
+  font-weight: bold;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s ease;
+  z-index: 3001; /* Above image */
+}
+
+.generated-image-fullscreen .close-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.generated-image-fullscreen .download-button {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 255, 247, 0.1); /* Semi-transparent futuristic blue-green */
+  border: 1px solid rgba(0, 255, 247, 0.3);
+  color: #00fff7; /* Futuristic blue-green */
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 3001; /* Above image */
+}
+
+.generated-image-fullscreen .download-button:hover {
+  background: rgba(0, 255, 247, 0.2);
+  border-color: #00fff7;
+  color: #ffffff;
 }
 
 .App {
