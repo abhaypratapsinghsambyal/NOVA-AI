@@ -1,0 +1,210 @@
+/* Login.css - Styles for the login component */
+
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0d1a 0%, #1a2333 100%);
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.login-card {
+  background: rgba(26, 35, 51, 0.9);
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 450px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0, 255, 247, 0.1);
+  border: 1px solid rgba(0, 255, 247, 0.2);
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+.nova-logo {
+  margin-bottom: 30px;
+}
+
+.nova-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00fff7 0%, #0080ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  box-shadow: 0 0 30px rgba(0, 255, 247, 0.5);
+  animation: pulse-glow 2s ease-in-out infinite alternate;
+}
+
+.nova-text {
+  color: #0a0d1a;
+  font-weight: bold;
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+
+@keyframes pulse-glow {
+  from {
+    box-shadow: 0 0 30px rgba(0, 255, 247, 0.5);
+  }
+  to {
+    box-shadow: 0 0 50px rgba(0, 255, 247, 0.8);
+  }
+}
+
+.login-title {
+  color: #00fff7;
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  text-shadow: 0 0 10px rgba(0, 255, 247, 0.3);
+}
+
+.login-subtitle {
+  color: #8892b0;
+  font-size: 16px;
+  margin-bottom: 40px;
+}
+
+.user-selection h3 {
+  color: #ccd6f6;
+  font-size: 18px;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.user-options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.user-option {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  border-radius: 12px;
+  background: rgba(100, 255, 218, 0.05);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.user-option:hover {
+  background: rgba(100, 255, 218, 0.1);
+  border-color: rgba(0, 255, 247, 0.3);
+  transform: translateY(-2px);
+}
+
+.user-option.selected {
+  background: rgba(0, 255, 247, 0.15);
+  border-color: #00fff7;
+  box-shadow: 0 0 20px rgba(0, 255, 247, 0.2);
+}
+
+.user-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00fff7 0%, #0080ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0a0d1a;
+  font-weight: bold;
+  font-size: 20px;
+  margin-right: 15px;
+}
+
+.user-info {
+  text-align: left;
+  flex: 1;
+}
+
+.user-name {
+  color: #ccd6f6;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.user-role {
+  color: #8892b0;
+  font-size: 14px;
+  text-transform: capitalize;
+}
+
+.error-message {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  color: #ff6b6b;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.login-button {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, #00fff7 0%, #0080ff 100%);
+  color: #0a0d1a;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 30px;
+}
+
+.login-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 255, 247, 0.3);
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.login-info {
+  color: #8892b0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.login-info p {
+  margin: 8px 0;
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 30px 20px;
+    margin: 10px;
+  }
+  
+  .login-title {
+    font-size: 24px;
+  }
+  
+  .user-option {
+    padding: 15px;
+  }
+  
+  .user-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+  
+  .user-name {
+    font-size: 16px;
+  }
+}

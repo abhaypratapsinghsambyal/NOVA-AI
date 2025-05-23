@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import './App.css';
 import { startCamera } from './camera';
 import { callGeminiAPI } from './geminiService';
+import { getCurrentUser, logout } from './auth';
+import { initializeSharedMemory } from './memory';
+import Login from './Login';
 
 export default App;
 
@@ -11,6 +14,8 @@ function App() {
   const [capturedImage, setCapturedImage] = useState(null);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [aiStatus, setAiStatus] = useState('idle'); // 'idle', 'listening', 'processing', 'speaking'
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const [audioLevel, setAudioLevel] = useState(0);
   const recognitionRef = useRef(null);
@@ -18,8 +23,37 @@ function App() {
   const waveformRef = useRef(null);
   const [voiceReady, setVoiceReady] = useState(false);
   const [novaVoice, setNovaVoice] = useState(null);
+  // Check authentication on startup
+  useEffect(() => {
+    const user = getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      // Initialize shared memory system
+      initializeSharedMemory();
+    }
+  }, []);
+
+  // Handle user login
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    // Initialize shared memory system after login
+    initializeSharedMemory();
+  };
+
+  // Handle user logout
+  const handleLogout = () => {
+    logout();
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    setAiStatus('idle');
+  };
+
   // Find British female voice
   useEffect(() => {
+    if (!isAuthenticated) return;
+    
     function setVoice() {
       const voices = synthRef.current.getVoices();
       console.log('Available voices:', voices.map(v => v.name)); // Log voice names
@@ -37,11 +71,11 @@ function App() {
     }
     setVoice();
     console.log('Initial voices:', synthRef.current.getVoices());
-  }, []);
+  }, [isAuthenticated]);
 
   // Start continuous listening
   useEffect(() => {
-    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
+    if (!isAuthenticated || !('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
@@ -65,7 +99,7 @@ function App() {
     }
 
     // eslint-disable-next-line
-  }, [voiceReady]);
+  }, [voiceReady, isAuthenticated]);
 
   // Animate waveform based on audio activity
   function animateWaveform(level) {
@@ -131,30 +165,49 @@ function App() {
     animateWaveform(1);
   }
 
-  // Start camera on component mount
+  // Start camera on component mount (only when authenticated)
   useEffect(() => {
-    startCamera();
-  }, []);
+    if (isAuthenticated) {
+      startCamera();
+    }
+  }, [isAuthenticated]);
 
-  // No visible chat or text output
+  // Show login screen if not authenticated
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  // Main NOVA interface
   return (
     <div className="nova-container">
       <div className={`nova-bg ${aiStatus}`}>
-      <div className="nova-center">
-        <div className={`nova-waveform ${aiStatus}`} ref={waveformRef} style={{ boxShadow: `0 0 ${40 + audioLevel * 60}px 10px #00fff7, 0 0 ${80 + audioLevel * 120}px 30px #00fff7` }}>
-          <svg width="240" height="240" viewBox="0 0 240 240">
-            <circle cx="120" cy="120" r={90 + audioLevel * 20} fill="none" stroke="#00fff7" strokeWidth="6" opacity="0.7" />
-            <circle cx="120" cy="120" r={60 + audioLevel * 10} fill="none" stroke="#00fff7" strokeWidth="3" opacity="0.3" />
-            <circle cx="120" cy="120" r={30 + audioLevel * 5} fill="none" stroke="#00fff7" strokeWidth="2" opacity="0.2" />
-          </svg>
-          <span className="nova-title">NOVA</span>
+        {/* User info and logout button */}
+        <div className="user-header">
+          <div className="user-info">
+            <span className="user-name">Welcome, {currentUser?.name}</span>
+            <span className="user-status">Shared Memory Active</span>
+          </div>
+          <button className="logout-button" onClick={handleLogout}>
+            Logout
+          </button>
         </div>
-        <div className="nova-mic-glow" style={{ opacity: aiStatus === 'listening' ? 1 : 0.3 }} />
+        
+        <div className="nova-center">
+          <div className={`nova-waveform ${aiStatus}`} ref={waveformRef} style={{ boxShadow: `0 0 ${40 + audioLevel * 60}px 10px #00fff7, 0 0 ${80 + audioLevel * 120}px 30px #00fff7` }}>
+            <svg width="240" height="240" viewBox="0 0 240 240">
+              <circle cx="120" cy="120" r={90 + audioLevel * 20} fill="none" stroke="#00fff7" strokeWidth="6" opacity="0.7" />
+              <circle cx="120" cy="120" r={60 + audioLevel * 10} fill="none" stroke="#00fff7" strokeWidth="3" opacity="0.3" />
+              <circle cx="120" cy="120" r={30 + audioLevel * 5} fill="none" stroke="#00fff7" strokeWidth="2" opacity="0.2" />
+            </svg>
+            <span className="nova-title">NOVA</span>
+          </div>
+          <div className="nova-mic-glow" style={{ opacity: aiStatus === 'listening' ? 1 : 0.3 }} />
+        </div>
+        
+        {capturedImage && (aiStatus === 'speaking' || isFadingOut) && (
+          <img src={capturedImage} alt="Captured from camera" className={`camera-popup-image ${isFadingOut ? 'fade-out' : ''}`} />
+        )}
       </div>
-      {capturedImage && (aiStatus === 'speaking' || isFadingOut) && (
-        <img src={capturedImage} alt="Captured from camera" className={`camera-popup-image ${isFadingOut ? 'fade-out' : ''}`} />
-      )}
-    </div>
     </div>
   );
 }
