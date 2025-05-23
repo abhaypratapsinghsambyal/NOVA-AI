@@ -91,4 +91,4 @@ export async function streamChatResponse(userMessage, onChunk) {
     throw error;
   }
 }
-const model = 'mistralai/mistral-small'; // Using Mistral: Devstral Small (free)
+const model = 'mistralai/devstral-small:free'; // Using Mistral: Devstral Small (free)
