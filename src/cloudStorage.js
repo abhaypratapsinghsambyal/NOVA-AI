@@ -1,13 +1,16 @@
 // cloudStorage.js - Handles cloud-based storage for shared memories
 
-// Using Firebase Realtime Database for real-time synchronization
-// Note: In production, you would use actual Firebase SDK
-// For now, we'll simulate with a simple API structure
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, push, onValue, query, orderByChild, startAt } from 'firebase/database';
 
 const FIREBASE_CONFIG = {
-  // Replace with your actual Firebase config
-  databaseURL: 'https://nova-shared-memory-default-rtdb.firebaseio.com/',
-  apiKey: 'your-api-key-here'
+  apiKey: "AIzaSyCGghf36t0F2oAGbyIcdiFpgAj4mOoTRCM",
+  authDomain: "nova-accc8.firebaseapp.com",
+  projectId: "nova-accc8",
+  storageBucket: "nova-accc8.firebasestorage.app",
+  messagingSenderId: "779173243834",
+  appId: "1:779173243834:web:f0f4a4bf3ce2c1484e4b83",
+  measurementId: "G-3WVTF3HMWY"
 };
 
 class CloudStorageService {
@@ -24,6 +27,11 @@ class CloudStorageService {
     window.addEventListener('offline', () => {
       this.isOnline = false;
     });
+
+    // Initialize Firebase
+    this.app = initializeApp(FIREBASE_CONFIG);
+    this.database = getDatabase(this.app);
+    this.memoriesRef = ref(this.database, 'sharedMemories');
   }
 
   // Generate unique memory ID
@@ -58,41 +66,40 @@ class CloudStorageService {
     return memoryEntry;
   }
 
-  // Upload memory to cloud (simulated)
+  // Upload memory to cloud
   async uploadToCloud(memoryEntry) {
-    // In a real implementation, this would use Firebase SDK
-    // For now, we'll use localStorage as a simulation
-    const cloudData = this.getCloudData();
-    cloudData.sharedMemories = cloudData.sharedMemories || [];
-    cloudData.sharedMemories.push(memoryEntry);
-    
-    localStorage.setItem('nova_cloud_simulation', JSON.stringify(cloudData));
-    
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    console.log('Memory synced to cloud:', memoryEntry.id);
-  }
-
-  // Get cloud data (simulated)
-  getCloudData() {
-    const data = localStorage.getItem('nova_cloud_simulation');
-    return data ? JSON.parse(data) : { sharedMemories: [] };
+    try {
+      await push(this.memoriesRef, memoryEntry);
+      console.log('Memory synced to cloud:', memoryEntry.id);
+    } catch (error) {
+      console.error('Failed to sync to cloud:', error);
+      throw error; // Re-throw to be caught by saveSharedMemory
+    }
   }
 
   // Fetch shared memories from cloud
   async fetchSharedMemories(lastSyncTime = null) {
     try {
-      const cloudData = this.getCloudData();
-      let memories = cloudData.sharedMemories || [];
-      
+      let queryRef = this.memoriesRef;
       if (lastSyncTime) {
-        memories = memories.filter(memory => 
-          new Date(memory.timestamp) > new Date(lastSyncTime)
-        );
+        queryRef = query(this.memoriesRef, orderByChild('timestamp'), startAt(lastSyncTime));
       }
-      
-      return memories;
+
+      // This is a one-time fetch, not a real-time listener
+      // For real-time updates, use onMemoryUpdate
+      return new Promise((resolve, reject) => {
+        onValue(queryRef, (snapshot) => {
+          const memories = [];
+          snapshot.forEach((childSnapshot) => {
+            memories.push(childSnapshot.val());
+          });
+          resolve(memories);
+        }, (error) => {
+          console.error('Failed to fetch shared memories:', error);
+          reject(error);
+        }, { onlyOnce: true });
+      });
+
     } catch (error) {
       console.error('Failed to fetch shared memories:', error);
       return [];
@@ -105,39 +112,50 @@ class CloudStorageService {
     
     console.log(`Syncing ${this.pendingSync.length} pending memories...`);
     
+    const successfullySynced = [];
     for (const memory of this.pendingSync) {
       try {
         await this.uploadToCloud(memory);
-        memory.synced = true;
+        successfullySynced.push(memory);
       } catch (error) {
         console.error('Failed to sync pending memory:', error);
+        // Stop syncing if one fails to avoid issues
         break;
       }
     }
     
-    this.pendingSync = this.pendingSync.filter(memory => !memory.synced);
+    // Remove successfully synced items from pendingSync
+    this.pendingSync = this.pendingSync.filter(memory => 
+      !successfullySynced.some(synced => synced.id === memory.id)
+    );
   }
 
-  // Listen for real-time updates (simulated)
+  // Listen for real-time updates
   onMemoryUpdate(callback) {
-    // In a real implementation, this would use Firebase listeners
-    // For now, we'll poll for changes
-    setInterval(async () => {
-      const lastCheck = localStorage.getItem('nova_last_memory_check');
-      const memories = await this.fetchSharedMemories(lastCheck);
-      
-      if (memories.length > 0) {
-        callback(memories);
-        localStorage.setItem('nova_last_memory_check', new Date().toISOString());
-      }
-    }, 5000); // Check every 5 seconds
+    // Use Firebase listener for real-time updates
+    onValue(this.memoriesRef, (snapshot) => {
+      const memories = [];
+      snapshot.forEach((childSnapshot) => {
+        memories.push(childSnapshot.val());
+      });
+      callback(memories);
+    }, (error) => {
+      console.error('Firebase real-time update failed:', error);
+    });
   }
 
-  // Clear all cloud data (for testing)
+  // Clear all cloud data (for testing - use with caution!)
   async clearCloudData() {
-    localStorage.removeItem('nova_cloud_simulation');
-    localStorage.removeItem('nova_last_memory_check');
-    this.pendingSync = [];
+    // In a real app, you might not expose this or require auth
+    // For testing, we'll remove the 'sharedMemories' node
+    try {
+      const db = getDatabase();
+      await set(ref(db, 'sharedMemories'), null);
+      console.log('Cloud data cleared.');
+      this.pendingSync = [];
+    } catch (error) {
+      console.error('Failed to clear cloud data:', error);
+    }
   }
 }
 
