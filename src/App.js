@@ -247,9 +247,6 @@ function App() {
           cloudStorage.saveImageMemory(currentUser.uid, capturedImageData);
           speak("I've shared your camera feed.");
           return;
-        } else {
-          speak("Sorry, I couldn't share your camera feed right now.");
-          return;
         }
       }
 
