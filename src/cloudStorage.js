@@ -10,7 +10,8 @@ const FIREBASE_CONFIG = {
   storageBucket: "nova-accc8.firebasestorage.app",
   messagingSenderId: "779173243834",
   appId: "1:779173243834:web:f0f4a4bf3ce2c1484e4b83",
-  measurementId: "G-3WVTF3HMWY"
+  measurementId: "G-3WVTF3HMWY",
+  databaseURL: "https://nova-accc8-default-rtdb.firebaseio.com/"
 };
 
 class CloudStorageService {
