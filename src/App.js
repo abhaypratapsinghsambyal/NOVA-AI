@@ -6,9 +6,6 @@ import { callGeminiAPI } from './geminiService';
 import { cloudStorage } from './cloudStorage';
 import Login from './Login';
 
-export default App;
-
-
 
 function App() {
   const [capturedImage, setCapturedImage] = useState(null);
@@ -251,28 +248,14 @@ function App() {
             transcript.toLowerCase().includes('camera') ||
             transcript.toLowerCase().includes('picture')) {
 
-          const { aiResponse } = await callGeminiAPI(transcript, capturedImageData);
+          const aiResponse = callGeminiAPI(transcript, capturedImageData);
           speak(aiResponse);
-        } else {
-          // Use streaming for general conversation
-          let fullResponse = '';
-          await streamChatResponse(transcript, (chunk) => {
-            fullResponse += chunk;
-            speak(chunk, true);
-          });
-
-          // After streaming completes
-          setTimeout(() => {
-            setAiStatus('idle');
-            isProcessingRef.current = false;
-            startListening();
-          }, 1000);
-        }
+        } 
       } catch (error) {
         console.error('Error processing request:', error);
         speak("Sorry, I encountered an error processing your request.");
       }
-    };
+    }; // Added closing brace and parenthesis for onresult handler
 
     // Start listening when voice is ready
     if (voiceReady) {
@@ -283,7 +266,7 @@ function App() {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
-    };
+    }; // Added closing parenthesis for useEffect
   }, [voiceReady, isAuthenticated]);
 
   // Animate waveform
@@ -343,3 +326,5 @@ function App() {
     </div>
   );
 }
+
+export default App;
