@@ -20,20 +20,15 @@ export async function callGeminiAPI(userMessage, imageData = null) {
     // Prepare the request body
     const requestBody = {
       contents: [{
+        role: 'user', // Explicitly set role for the user turn
         parts: []
       }]
     };
     
-    // Add memory context
-    if (memoryContext) {
-      requestBody.contents[0].parts.push({
-        text: `Memory Context:\n${memoryContext}\n\nUser Message: ${userMessage}`
-      });
-    } else {
-      requestBody.contents[0].parts.push({
-        text: userMessage
-      });
-    }
+    // Add user message part
+    requestBody.contents[0].parts.push({
+      text: userMessage
+    });
     
     // Add image if provided
     if (imageData) {
