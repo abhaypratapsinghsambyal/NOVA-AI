@@ -64,8 +64,6 @@ export const getMemoryContext = () => {
     context += `Partner: ${partner.name}\n`;
   }
   
-  context += `\nPersonal conversation history:\n${historyText}\n\n`;
-  context += `Personal Information: ${userInfoText}\n\n`;
   
   if (sharedConversations) {
     context += `Shared conversation history with partner:\n${sharedConversations}\n\n`;

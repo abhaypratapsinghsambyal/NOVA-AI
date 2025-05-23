@@ -29,11 +29,11 @@ const prepareContext = async (userMessage) => {
   const memoryContext = getMemoryContext();
   
   // Create system prompt with memory context
-  const systemPrompt = `You are Nova, an advanced AI assistant with memory capabilities. 
+  const systemPrompt = `You are Nova, an advanced AI assistant with memory capabilities. This memory is shared between two users, Abhay and Piram. You should use all information provided in the memory context, including personal details and conversation history from both users, to provide a helpful, friendly, and concise response that is relevant to the shared context.
 ${memoryContext}
 
 Respond to the user's message in a helpful, friendly, and concise manner. 
-If you see an image, only mention it if it's relevant to the conversation or if the user is asking about it.`;
+If you see an image, only mention it if it's relevant to the conversation or if the user is asking about it.`
   
   return systemPrompt;
 };
