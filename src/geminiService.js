@@ -18,28 +18,27 @@ export async function callGeminiAPI(userMessage, imageData = null) {
     const memoryContext = getMemoryContext();
     
     // Prepare the request body
-    const requestBody = {
-      contents: [{
-        role: 'user', // Explicitly set role for the user turn
-        parts: []
-      }]
-    };
-    
-    // Add user message part
-    requestBody.contents[0].parts.push({
-      text: userMessage
-    });
-    
-    // Add image if provided
-    if (imageData) {
-      const base64Data = imageData.split(',')[1];
-      requestBody.contents[0].parts.push({
-        inline_data: {
-          mime_type: "image/jpeg",
-          data: base64Data
+        const parts = [{ text: userMessage }];
+
+        // Add image data part if provided and valid
+        if (imageData && imageData.mimeType && imageData.data) {
+            parts.push({
+                inlineData: {
+                    mimeType: imageData.mimeType,
+                    data: imageData.data
+                }
+            });
         }
-      });
-    }
+
+        const requestBody = {
+            contents: [
+                ...memoryContext, // Include previous conversational turns
+                {
+                    parts: parts,
+                    role: 'user' // Current user turn
+                }
+            ]
+        };
     
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: 'POST',

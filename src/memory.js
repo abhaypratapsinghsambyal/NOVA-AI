@@ -76,7 +76,17 @@ export const getMemoryContext = () => {
     context += `Shared Personal Details: ${personalDetails}\n\n`;
   }
   
-  return context;
+  // Format memory history for Gemini API
+  const formattedHistory = currentMemory.history.map(entry => ({
+    role: entry.role === 'user' ? 'user' : 'model', // Map roles to Gemini API format
+    parts: [{ text: entry.text }]
+  }));
+
+  // Note: Shared memory context is not included in the Gemini API history array directly.
+  // It might be better to include relevant shared memory info as a system instruction or initial prompt.
+  // For now, returning only the formatted conversational history.
+
+  return formattedHistory;
 };
 
 export const addUserMessage = async (message) => {

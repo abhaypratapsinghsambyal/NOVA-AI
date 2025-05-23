@@ -219,18 +219,31 @@ function App() {
       if (transcript.toLowerCase().includes('show me my camera') ||
           transcript.toLowerCase().includes('show my camera') ||
           transcript.toLowerCase().includes('show me my pic')) {
-        capturedImageData = captureFrame();
-        if (capturedImageData) {
-          setCapturedImage(capturedImageData);
+        const imageDataUrl = captureFrame();
+        if (imageDataUrl) {
+          setCapturedImage(imageDataUrl);
           setIsFadingIn(true);
+          // Format image data for Gemini API
+          const [mimeType, base64Data] = imageDataUrl.split(';base64,');
+          capturedImageData = {
+            mimeType: mimeType.split(':')[1],
+            data: base64Data
+          };
         }
       }
 
       // Handle sharing commands
       if (transcript.toLowerCase().includes('share my camera') ||
           transcript.toLowerCase().includes('share my pic')) {
-        capturedImageData = captureFrame();
-        if (capturedImageData && currentUser) {
+        const imageDataUrl = captureFrame();
+        if (imageDataUrl && currentUser) {
+          // Note: Sharing image memory directly saves the data URL string.
+          // If Gemini needs the structured format for sharing commands too,
+          // this part might need adjustment.
+          cloudStorage.saveImageMemory(currentUser.uid, imageDataUrl);
+          speak("I've shared your camera feed.");
+          return;
+        } else {
           cloudStorage.saveImageMemory(currentUser.uid, capturedImageData);
           speak("I've shared your camera feed.");
           return;
