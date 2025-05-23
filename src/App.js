@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { startCamera, captureFrame } from './camera';
-import { callGeminiAPI } from './geminiService';
 import { getCurrentUser, logout } from './auth';
-import { initializeSharedMemory } from './memory';
+import { callGeminiAPI } from './geminiService';
+import { streamChatResponse } from './openRouterService';
 import { cloudStorage } from './cloudStorage';
 import Login from './Login';
 
@@ -15,27 +15,55 @@ function App() {
   const [capturedImage, setCapturedImage] = useState(null);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [isFadingIn, setIsFadingIn] = useState(false);
-  const [aiStatus, setAiStatus] = useState('idle'); // 'idle', 'listening', 'processing', 'speaking'
+  const [aiStatus, setAiStatus] = useState('idle');
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-
   const [receivedImage, setReceivedImage] = useState(null);
   const [isReceivedImageFadingIn, setIsReceivedImageFadingIn] = useState(false);
   const [isReceivedImageFadingOut, setIsReceivedImageFadingOut] = useState(false);
-
   const [audioLevel, setAudioLevel] = useState(0);
+  const [voiceReady, setVoiceReady] = useState(false);
+  const [novaVoice, setNovaVoice] = useState(null);
+
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
   const waveformRef = useRef(null);
-  const [voiceReady, setVoiceReady] = useState(false);
-  const [novaVoice, setNovaVoice] = useState(null);
+  const isProcessingRef = useRef(false);
+
+  // Initialize shared memory system
+  const initializeSharedMemory = () => {
+    console.log('Initializing shared memory system...');
+    
+    // Listen for real-time memory updates
+    cloudStorage.onMemoryUpdate((memories) => {
+      console.log('Received memory update:', memories);
+    });
+    
+    // Listen for image memory updates
+    cloudStorage.onImageMemoryUpdate((imageMemories) => {
+      console.log('Received image memory update:', imageMemories);
+      const latestImage = imageMemories[imageMemories.length - 1];
+      if (latestImage && latestImage.userId !== currentUser?.uid) {
+        setReceivedImage(latestImage.imageData);
+        setIsReceivedImageFadingIn(true);
+        setTimeout(() => {
+          setIsReceivedImageFadingIn(false);
+          setIsReceivedImageFadingOut(true);
+          setTimeout(() => {
+            setReceivedImage(null);
+            setIsReceivedImageFadingOut(false);
+          }, 500);
+        }, 3000);
+      }
+    });
+  };
+
   // Check authentication on startup
   useEffect(() => {
     const user = getCurrentUser();
     if (user) {
       setCurrentUser(user);
       setIsAuthenticated(true);
-      // Initialize shared memory system
       initializeSharedMemory();
     }
   }, []);
@@ -44,7 +72,6 @@ function App() {
   const handleLogin = (user) => {
     setCurrentUser(user);
     setIsAuthenticated(true);
-    // Initialize shared memory system after login
     initializeSharedMemory();
   };
 
@@ -54,197 +81,233 @@ function App() {
     setCurrentUser(null);
     setIsAuthenticated(false);
     setAiStatus('idle');
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
   };
 
-  // Find British female voice
+  // Initialize voice synthesis
   useEffect(() => {
     if (!isAuthenticated) return;
     
     function setVoice() {
       const voices = synthRef.current.getVoices();
-      console.log('Available voices:', voices.map(v => v.name)); // Log voice names
-      // Try to find 'Google UK English Female', fallback to default, then first available
+      console.log('Available voices:', voices.map(v => v.name));
+      
       const preferredVoiceName = "Google UK English Female";
-      const preferred = voices.find(v => v.name === preferredVoiceName) || voices.find(v => v.default) || voices[0];
+      const preferred = voices.find(v => v.name === preferredVoiceName) || 
+                       voices.find(v => v.default) || 
+                       voices[0];
+      
       setNovaVoice(preferred);
-      // Set voiceReady to true if any voice was found, even if not the preferred one
       setVoiceReady(voices.length > 0);
-      console.log('Preferred voice set:', preferred);
-      console.log('Voice ready status:', voices.length > 0);
+      console.log('Voice set:', preferred?.name || 'None');
     }
+    
     if (synthRef.current.onvoiceschanged !== undefined) {
       synthRef.current.onvoiceschanged = setVoice;
     }
     setVoice();
-    console.log('Initial voices:', synthRef.current.getVoices());
   }, [isAuthenticated]);
 
-  // Start continuous listening
+  // Speech synthesis function
+  const speak = (text, isStreaming = false) => {
+    console.log(`Speaking: "${text}", streaming: ${isStreaming}`);
+    
+    if (!voiceReady || !novaVoice) {
+      console.log('Speech synthesis not ready');
+      return;
+    }
+
+    if (isStreaming && synthRef.current.speaking) {
+      synthRef.current.cancel();
+    }
+
+    const utter = new window.SpeechSynthesisUtterance(text);
+    if (novaVoice) utter.voice = novaVoice;
+    utter.rate = 1.02;
+    utter.pitch = 1.1;
+
+    if (!isStreaming) {
+      utter.onend = () => {
+        console.log('Speech ended');
+        setIsFadingIn(false);
+        setIsFadingOut(true);
+        setTimeout(() => {
+          setCapturedImage(null);
+          setIsFadingOut(false);
+          setAiStatus('idle');
+          isProcessingRef.current = false;
+          startListening();
+        }, 500);
+      };
+    }
+
+    utter.onerror = (event) => {
+      console.error('Speech synthesis error:', event.error);
+      setAiStatus('idle');
+      isProcessingRef.current = false;
+      startListening();
+    };
+
+    synthRef.current.speak(utter);
+    if (!isStreaming) {
+      setAiStatus('speaking');
+    }
+    animateWaveform(1);
+  };
+
+  // Start listening function
+  const startListening = () => {
+    if (!recognitionRef.current || aiStatus !== 'idle' || isProcessingRef.current) {
+      console.log('Cannot start listening:', { 
+        hasRecognition: !!recognitionRef.current, 
+        status: aiStatus, 
+        processing: isProcessingRef.current 
+      });
+      return;
+    }
+
+    try {
+      console.log('Starting speech recognition...');
+      recognitionRef.current.start();
+    } catch (error) {
+      console.error('Error starting recognition:', error);
+      setTimeout(startListening, 1000);
+    }
+  };
+
+  // Initialize speech recognition
   useEffect(() => {
-    if (!isAuthenticated || !('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
+    if (!isAuthenticated || !('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      return;
+    }
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.continuous = true; // Set to true for continuous listening
+    recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = 'en-US';
     recognitionRef.current = recognition;
 
-    recognition.onstart = () => setAiStatus('listening');
-    // recognition.onend will not be used with continuous = true
+    recognition.onstart = () => {
+      console.log('Recognition started');
+      setAiStatus('listening');
+    };
+
     recognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
-      // Attempt to restart listening on error
       setAiStatus('idle');
-      // Add a small delay before attempting to restart
+      isProcessingRef.current = false;
       setTimeout(startListening, 1000);
     };
+
+    recognition.onend = () => {
+      console.log('Recognition ended');
+      if (aiStatus === 'listening') {
+        setAiStatus('idle');
+        setTimeout(startListening, 500);
+      }
+    };
+
     recognition.onresult = async (event) => {
       const transcript = event.results[event.results.length - 1][0].transcript;
       console.log('Transcript:', transcript);
-      // Stop listening temporarily while processing and speaking
-      recognitionRef.current.stop();
+      
+      isProcessingRef.current = true;
       setAiStatus('processing');
 
       let capturedImageData = null;
-      // Check if the user is asking for their camera feed
-      if (transcript.toLowerCase().includes('show me my camera feed') ||
-          transcript.toLowerCase().includes('show me my pic') ||
+
+      // Handle camera commands
+      if (transcript.toLowerCase().includes('show me my camera') ||
           transcript.toLowerCase().includes('show my camera') ||
-          transcript.toLowerCase().includes('show my picture')) {
-        console.log('User requested camera feed.');
-        // Capture the frame
+          transcript.toLowerCase().includes('show me my pic')) {
         capturedImageData = captureFrame();
         if (capturedImageData) {
           setCapturedImage(capturedImageData);
-          setIsFadingIn(true); // Start fade in
-        } else {
-          console.warn('Failed to capture frame.');
+          setIsFadingIn(true);
         }
       }
 
-      const { aiResponse } = await fetchGemini(transcript, capturedImageData);
-
-      // Check if the user is asking for the other user's camera feed
-      if (transcript.toLowerCase().includes('show me piram\'s camera feed') ||
-          transcript.toLowerCase().includes('show me piram\'s pic') ||
-          transcript.toLowerCase().includes('show piram\'s camera') ||
-          transcript.toLowerCase().includes('show piram\'s picture')) {
-        speak("I can only access your camera feed at the moment. Cross-device camera access is not yet implemented.");
-      } else if (transcript.toLowerCase().includes('share my camera feed') ||
-                 transcript.toLowerCase().includes('share my pic') ||
-                 transcript.toLowerCase().includes('share my camera') ||
-                 transcript.toLowerCase().includes('share my picture')) {
-        console.log('User requested to share camera feed.');
+      // Handle sharing commands
+      if (transcript.toLowerCase().includes('share my camera') ||
+          transcript.toLowerCase().includes('share my pic')) {
         capturedImageData = captureFrame();
         if (capturedImageData && currentUser) {
           cloudStorage.saveImageMemory(currentUser.uid, capturedImageData);
-          speak("Okay, I've shared your camera feed.");
+          speak("I've shared your camera feed.");
+          return;
         } else {
-          console.warn('Failed to capture frame or user not logged in.');
           speak("Sorry, I couldn't share your camera feed right now.");
+          return;
         }
-      } else {
-        speak(aiResponse);
+      }
+
+      try {
+        // Use Gemini for image/memory queries, Mistral for general conversation
+        if (capturedImageData || 
+            transcript.toLowerCase().includes('remember') ||
+            transcript.toLowerCase().includes('memory') ||
+            transcript.toLowerCase().includes('camera') ||
+            transcript.toLowerCase().includes('picture')) {
+          
+          const { aiResponse } = await callGeminiAPI(transcript, capturedImageData);
+          speak(aiResponse);
+        } else {
+          // Use streaming for general conversation
+          let fullResponse = '';
+          await streamChatResponse(transcript, (chunk) => {
+            fullResponse += chunk;
+            speak(chunk, true);
+          });
+          
+          // After streaming completes
+          setTimeout(() => {
+            setAiStatus('idle');
+            isProcessingRef.current = false;
+            startListening();
+          }, 1000);
+        }
+      } catch (error) {
+        console.error('Error processing request:', error);
+        speak("Sorry, I encountered an error processing your request.");
       }
     };
 
-    // Start listening initially if voice is ready
+    // Start listening when voice is ready
     if (voiceReady) {
-      startListening();
+      setTimeout(startListening, 1000);
     }
 
-    // Cleanup function to stop recognition when component unmounts or dependencies change
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
     };
+  }, [voiceReady, isAuthenticated]);
 
-    // eslint-disable-next-line
-  }, [voiceReady, isAuthenticated, aiStatus]); // Added aiStatus to dependencies
-
-  // Animate waveform based on audio activity
-  function animateWaveform(level) {
+  // Animate waveform
+  const animateWaveform = (level) => {
     setAudioLevel(level);
     setTimeout(() => setAudioLevel(0), 700);
-  }
+  };
 
-  function startListening() {
-    console.log('startListening called. Current status:', aiStatus);
-    if (recognitionRef.current && aiStatus === 'idle') {
-      console.log('Recognition starting...');
-      try { recognitionRef.current.start(); } catch (e) { console.error(e); setAiStatus('idle'); }
-    } else if (recognitionRef.current) {
-      console.log('Recognition not starting because status is not idle:', aiStatus);
-    } else {
-      console.log('Recognition not starting because recognitionRef is null.');
-    }
-  }
-
-  async function fetchGemini(text, imageData = null) {
-    // Use the updated callGeminiAPI function
-    return await callGeminiAPI(text, imageData);
-  }
-
-  function speak(text) {
-    console.log('Attempting to speak:', text);
-    console.log('voiceReady:', voiceReady);
-    console.log('novaVoice:', novaVoice);
-
-    if (!voiceReady || !novaVoice) {
-      console.log('Speech synthesis not ready or no voice selected. voiceReady:', voiceReady, 'novaVoice:', novaVoice);
-      // Attempt to speak with default voice if preferred not found but voices are available
-      if (voiceReady && synthRef.current.getVoices().length > 0) {
-        console.log('Attempting to speak with default voice.');
-      } else {
-        console.log('No voices available to speak.'); // Added log
-        return;
-      }
-    }
-    const utter = new window.SpeechSynthesisUtterance(text);
-    if (novaVoice) utter.voice = novaVoice;
-    utter.rate = 1.02;
-    utter.pitch = 1.1;
-    utter.onend = () => {
-      console.log('Speech synthesis ended. Current status:', aiStatus);
-      setIsFadingIn(false); // End fade in
-      setIsFadingOut(true); // Start fade out
-      setTimeout(() => {
-        setCapturedImage(null); // Clear image after fade out
-        setIsFadingOut(false); // Reset fade state
-        console.log('Attempting to restart listening after timeout. Current status:', aiStatus);
-        setAiStatus('idle'); // Set status back to idle before attempting to restart listening
-        startListening();
-      }, 500); // Match CSS transition duration (0.5s)
-    };
-    utter.onerror = (event) => { // Added error handler
-      console.error('Speech synthesis error:', event.error); // Log speech synthesis errors
-      setAiStatus('idle'); // Set status back to idle on error
-      startListening(); // Attempt to restart listening
-    };
-    console.log('Calling synthRef.current.speak with utter:', utter); // Added log before speak call
-    synthRef.current.speak(utter);
-    setAiStatus('speaking');
-    animateWaveform(1);
-  }
-
-  // Start camera on component mount (only when authenticated)
+  // Start camera when authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      startCamera();
+      startCamera().catch(console.error);
     }
   }, [isAuthenticated]);
 
-  // Show login screen if not authenticated
+  // Show login if not authenticated
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
   }
 
-  // Main NOVA interface
   return (
     <div className="nova-container">
       <div className={`nova-bg ${aiStatus}`}>
-        {/* User info and logout button */}
         <div className="user-header">
           <div className="user-info">
             <span className="user-name">Welcome, {currentUser?.name}</span>
@@ -256,7 +319,8 @@ function App() {
         </div>
         
         <div className="nova-center">
-          <div className={`nova-waveform ${aiStatus}`} ref={waveformRef} style={{ boxShadow: `0 0 ${40 + audioLevel * 60}px 10px #00fff7, 0 0 ${80 + audioLevel * 120}px 30px #00fff7` }}>
+          <div className={`nova-waveform ${aiStatus}`} ref={waveformRef} 
+               style={{ boxShadow: `0 0 ${40 + audioLevel * 60}px 10px #00fff7, 0 0 ${80 + audioLevel * 120}px 30px #00fff7` }}>
             <svg width="240" height="240" viewBox="0 0 240 240">
               <circle cx="120" cy="120" r={90 + audioLevel * 20} fill="none" stroke="#00fff7" strokeWidth="6" opacity="0.7" />
               <circle cx="120" cy="120" r={60 + audioLevel * 10} fill="none" stroke="#00fff7" strokeWidth="3" opacity="0.3" />
@@ -268,12 +332,13 @@ function App() {
         </div>
         
         {capturedImage && (aiStatus === 'speaking' || isFadingOut || isFadingIn) && (
-          <img src={capturedImage} alt="Captured from camera" className={`camera-popup-image ${isFadingOut ? 'fade-out' : (isFadingIn ? 'fade-in' : '')}`} />
+          <img src={capturedImage} alt="Captured from camera" 
+               className={`camera-popup-image ${isFadingOut ? 'fade-out' : (isFadingIn ? 'fade-in' : '')}`} />
         )}
 
-        {/* Received Image Pop-up */}
         {receivedImage && (isReceivedImageFadingIn || isReceivedImageFadingOut) && (
-          <img src={receivedImage} alt="Received from other user" className={`camera-popup-image ${isReceivedImageFadingOut ? 'fade-out' : (isReceivedImageFadingIn ? 'fade-in' : '')}`} />
+          <img src={receivedImage} alt="Received from other user" 
+               className={`camera-popup-image ${isReceivedImageFadingOut ? 'fade-out' : (isReceivedImageFadingIn ? 'fade-in' : '')}`} />
         )}
       </div>
     </div>
