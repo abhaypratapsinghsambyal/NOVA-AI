@@ -3,7 +3,7 @@ import './App.css';
 import { startCamera, captureFrame } from './camera';
 import { getCurrentUser, logout } from './auth';
 import { callGeminiAPI } from './geminiService';
-import { streamChatResponse } from './openRouterService'; // Remove this line
+import { streamChatResponse } from './openRouterService';
 import { cloudStorage } from './cloudStorage';
 import Login from './Login';
 
