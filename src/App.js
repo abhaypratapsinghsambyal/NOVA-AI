@@ -346,7 +346,7 @@ function App() {
       <header className="App-header">
         {/* ... existing header content ... */}
       </header>
-      {/* ... rest of your App content ... */}
+      <div style={{ color: 'red', fontSize: '30px', zIndex: 4000, position: 'relative' }}>Main App Content Placeholder</div>
     </div>
   );
 }
