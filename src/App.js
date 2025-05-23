@@ -3,7 +3,7 @@ import './App.css';
 import { startCamera, captureFrame } from './camera';
 import { getCurrentUser, logout } from './auth';
 import { callGeminiAPI } from './geminiService';
-import { streamChatResponse } from './openRouterService';
+import { streamChatResponse } from './openRouterService'; // Remove this line
 import { cloudStorage } from './cloudStorage';
 import Login from './Login';
 
@@ -245,13 +245,13 @@ function App() {
       }
 
       try {
-        // Use Gemini for image/memory queries, Mistral for general conversation
-        if (capturedImageData || 
+        // Use Gemini for all conversational and image/memory queries
+        if (capturedImageData ||
             transcript.toLowerCase().includes('remember') ||
             transcript.toLowerCase().includes('memory') ||
             transcript.toLowerCase().includes('camera') ||
             transcript.toLowerCase().includes('picture')) {
-          
+
           const { aiResponse } = await callGeminiAPI(transcript, capturedImageData);
           speak(aiResponse);
         } else {
@@ -261,7 +261,7 @@ function App() {
             fullResponse += chunk;
             speak(chunk, true);
           });
-          
+
           // After streaming completes
           setTimeout(() => {
             setAiStatus('idle');
