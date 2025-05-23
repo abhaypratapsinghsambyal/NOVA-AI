@@ -1,8 +1,8 @@
 // geminiService.js - Handles Gemini API calls with memory integration
 import { getMemoryContext, addUserMessage, addAIResponse, extractUserInfo } from './memory';
 
-const GEMINI_API_KEY = 'AIzaSyDHtaZOBJNJhJJJhJJJhJJJhJJJhJJJhJJ'; // Replace with your actual API key
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_KEY = 'AIzaSyBb0oyTl-uef9Cg0PgIENdg6xWhcIyffD0'; // Replace with your actual API key
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 export async function callGeminiAPI(userMessage, imageData = null) {
   try {
