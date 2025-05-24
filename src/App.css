@@ -12,6 +12,7 @@ body, html {
   align-items: center;
   justify-content: center;
   transition: background 2s ease-in-out;
+  animation: pulse-glow 2s infinite alternate;
 }
 
 .nova-center {
@@ -104,6 +105,7 @@ body, html {
 .nova-waveform.listening {
   box-shadow: 0 0 60px 10px #00ff00, 0 0 120px 30px #00ff00; /* Green */
   animation: waveform-pulse-green 2s infinite ease-in-out;
+  
 }
 
 .nova-waveform.processing {
@@ -443,26 +445,49 @@ body, html {
   opacity: 0;
   pointer-events: none;
 }
+.nova-core {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  border: 4px solid #00ffcc;
+  box-shadow: 0 0 30px currentColor;
+  transition: border-color 2s ease-in-out, box-shadow 2s ease-in-out;
+  margin: auto;
+}
 
+.nova-core.pulse {
+  animation: novaPulse 3s infinite alternate;
+}
+
+@keyframes novaPulse {
+  0% {
+    box-shadow: 0 0 20px currentColor;
+  }
+  100% {
+    box-shadow: 0 0 40px currentColor;
+  }
+}
 .nova-mic-glow.listening {
-  box-shadow: 0 0 40px 10px #00ff00, 0 0 80px 30px #00ff00; /* Green glow for listening */
-  animation: pulse-green-glow 1.5s infinite ease-in-out;
+  animation: pulse-green-glow 2s infinite ease-in-out;
+  transition: box-shadow 1s ease-in-out;
 }
 
 .nova-mic-glow.processing {
-  box-shadow: 0 0 40px 10px #00ffff, 0 0 80px 30px #00ffff; /* Cyan glow for processing */
-  animation: pulse-cyan-glow 1.5s infinite ease-in-out;
+  animation: pulse-cyan-glow 2s infinite ease-in-out;
+  transition: box-shadow 1s ease-in-out;
 }
 
 .nova-mic-glow.speaking {
-  box-shadow: 0 0 40px 10px #0000ff, 0 0 80px 30px #0000ff; /* Blue glow for speaking */
-  animation: pulse-blue-glow 1.5s infinite ease-in-out;
+  animation: pulse-blue-glow 2s infinite ease-in-out;
+  transition: box-shadow 1s ease-in-out;
 }
 
 /* Default or idle state glow */
 .nova-mic-glow {
   box-shadow: 0 0 20px 5px rgba(0, 255, 247, 0.3), 0 0 40px 15px rgba(0, 255, 247, 0.1); /* Subtle default glow */
-  animation: none; /* No animation when idle */
+  animation: pulse-blue-glow 1.5s infinite ease-in-out;
+  transition: box-shadow 1s ease-in-out;
+  transition: border-color 1s ease-in-out;
 }
 
 @keyframes pulse-green-glow {

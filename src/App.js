@@ -513,3 +513,21 @@ return (
 )
 }
 export default App;
+
+
+function updateNovaGlow(state) {
+  const core = document.querySelector('.nova-core');
+  if (core) {
+    if (state === 'listening') {
+      core.style.borderColor = '#00ff00';
+      core.style.boxShadow = '0 0 30px #00ff00';
+    } else if (state === 'processing') {
+      core.style.borderColor = '#00ffff';
+      core.style.boxShadow = '0 0 30px #00ffff';
+    } else if (state === 'speaking') {
+      core.style.borderColor = '#0066ff';
+      core.style.boxShadow = '0 0 30px #0066ff';
+    }
+    core.classList.add('pulse');
+  }
+}
