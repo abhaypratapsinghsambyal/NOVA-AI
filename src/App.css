@@ -11,7 +11,7 @@ body, html {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.5s ease-in-out;
+  transition: background 2s ease-in-out;
 }
 
 .nova-center {
@@ -31,9 +31,8 @@ body, html {
   align-items: center;
   justify-content: center;
   position: relative;
-  /* Initial state - will be overridden by status classes */
-  box-shadow: 0 0 40px 10px #00ff00, 0 0 80px 30px #00ff00;
-  transition: box-shadow 0.5s ease-in-out;
+  box-shadow: none;
+  transition: all 1s ease-in-out;
 }
 
 .nova-title {
@@ -45,9 +44,30 @@ body, html {
   font-size: 2.6rem;
   letter-spacing: 0.25em;
   color: #00fff7;
-  text-shadow: 0 0 16px #00fff7, 0 0 32px #00fff7;
+  text-shadow: none;
   pointer-events: none;
   user-select: none;
+  transition: color 2s ease-in-out, text-shadow 2s ease-in-out;
+}
+
+.nova-title.idle {
+  color: #00fff7;
+  text-shadow: 0 0 16px #00fff7, 0 0 32px #00fff7;
+}
+
+.nova-title.listening {
+  color: #00ff00;
+  text-shadow: 0 0 16px #00ff00, 0 0 32px #00ff00;
+}
+
+.nova-title.processing {
+  color: #00ffff;
+  text-shadow: 0 0 16px #00ffff, 0 0 32px #00ffff;
+}
+
+.nova-title.speaking {
+  color: #0000ff;
+  text-shadow: 0 0 16px #0000ff, 0 0 32px #0000ff;
 }
 
 .nova-mic-glow {
@@ -60,7 +80,7 @@ body, html {
   background: radial-gradient(circle, rgba(0,255,247,0.12) 0%, rgba(0,255,247,0.02) 80%, transparent 100%);
   transform: translate(-50%, -50%);
   pointer-events: none;
-  transition: opacity 0.3s;
+  transition: opacity 2s ease-in-out;
   z-index: 0;
 }
 
@@ -83,17 +103,17 @@ body, html {
 
 .nova-waveform.listening {
   box-shadow: 0 0 60px 10px #00ff00, 0 0 120px 30px #00ff00; /* Green */
-  animation: waveform-pulse-green 1.5s infinite ease-in-out;
+  animation: waveform-pulse-green 2s infinite ease-in-out;
 }
 
 .nova-waveform.processing {
   box-shadow: 0 0 60px 10px #00ffff, 0 0 120px 30px #00ffff; /* Green/Blue Mix (Cyan) */
-  animation: waveform-pulse-cyan 1.5s infinite ease-in-out;
+  animation: waveform-pulse-cyan 2s infinite ease-in-out;
 }
 
 .nova-waveform.speaking {
   box-shadow: 0 0 60px 10px #0000ff, 0 0 120px 30px #0000ff; /* Pure Blue */
-  animation: waveform-pulse-blue 1.5s infinite ease-in-out;
+  animation: waveform-pulse-blue 2s infinite ease-in-out;
 }
 
 @keyframes pulse-green-bg {
@@ -111,22 +131,28 @@ body, html {
   to { background: linear-gradient(135deg, #1a2333 0%, #0a0d1a 100%); }
 }
 
+@keyframes waveform-pulse-idle {
+  0% { box-shadow: 0 0 60px 10px #00fff7, 0 0 120px 30px #00fff7; opacity: 1; }
+  50% { box-shadow: 0 0 80px 15px #00fff7, 0 0 150px 40px #00fff7; opacity: 0.8; }
+  100% { box-shadow: 0 0 60px 10px #00fff7, 0 0 120px 30px #00fff7; opacity: 1; }
+}
+
 @keyframes waveform-pulse-green {
-  0% { box-shadow: 0 0 60px 10px #00ff00, 0 0 120px 30px #00ff00; }
-  50% { box-shadow: 0 0 80px 15px #00ff00, 0 0 150px 40px #00ff00; }
-  100% { box-shadow: 0 0 60px 10px #00ff00, 0 0 120px 30px #00ff00; }
+  0% { box-shadow: 0 0 60px 10px #00ff00, 0 0 120px 30px #00ff00; opacity: 0.8; }
+  50% { box-shadow: 0 0 80px 15px #00ff00, 0 0 150px 40px #00ff00; opacity: 1; }
+  100% { box-shadow: 0 0 60px 10px #00ff00, 0 0 120px 30px #00ff00; opacity: 0.8; }
 }
 
 @keyframes waveform-pulse-cyan {
-  0% { box-shadow: 0 0 60px 10px #00ffff, 0 0 120px 30px #00ffff; }
-  50% { box-shadow: 0 0 80px 15px #00ffff, 0 0 150px 40px #00ffff; }
-  100% { box-shadow: 0 0 60px 10px #00ffff, 0 0 120px 30px #00ffff; }
+  0% { box-shadow: 0 0 60px 10px #00ffff, 0 0 120px 30px #00ffff; opacity: 0.9; }
+  50% { box-shadow: 0 0 80px 15px #00ffff, 0 0 150px 40px #00ffff; opacity: 1; }
+  100% { box-shadow: 0 0 60px 10px #00ffff, 0 0 120px 30px #00ffff; opacity: 0.9; }
 }
 
 @keyframes waveform-pulse-blue {
-  0% { box-shadow: 0 0 60px 10px #0000ff, 0 0 120px 30px #0000ff; }
-  50% { box-shadow: 0 0 80px 15px #0000ff, 0 0 150px 40px #0000ff; }
-  100% { box-shadow: 0 0 60px 10px #0000ff, 0 0 120px 30px #0000ff; }
+  0% { box-shadow: 0 0 60px 10px #0000ff, 0 0 120px 30px #0000ff; opacity: 0.9; }
+  50% { box-shadow: 0 0 80px 15px #0000ff, 0 0 150px 40px #0000ff; opacity: 1; }
+  100% { box-shadow: 0 0 60px 10px #0000ff, 0 0 120px 30px #0000ff; opacity: 0.9; }
 }
 
 
@@ -372,6 +398,153 @@ body, html {
   opacity: 0;
   pointer-events: none; /* Allow clicks to pass through when hidden */
   transition: opacity 0.5s ease-in-out;
+}
+
+.camera-feed-overlay.fade-in {
+  opacity: 1;
+  pointer-events: auto; /* Enable clicks when visible */
+}
+
+.camera-feed-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.captured-image,
+.received-image {
+  max-width: 90%;
+  max-height: 90%;
+  border: 2px solid white;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+}
+
+.received-image-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001; /* Ensure it's above the self camera feed overlay */
+  opacity: 0;
+  pointer-events: none; /* Allow clicks to pass through when hidden */
+  transition: opacity 0.5s ease-in-out;
+}
+
+.received-image-overlay.fade-in {
+  opacity: 1;
+  pointer-events: auto; /* Enable clicks when visible */
+}
+
+.received-image-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nova-mic-glow.listening {
+  box-shadow: 0 0 40px 10px #00ff00, 0 0 80px 30px #00ff00; /* Green glow for listening */
+  animation: pulse-green-glow 1.5s infinite ease-in-out;
+}
+
+.nova-mic-glow.processing {
+  box-shadow: 0 0 40px 10px #00ffff, 0 0 80px 30px #00ffff; /* Cyan glow for processing */
+  animation: pulse-cyan-glow 1.5s infinite ease-in-out;
+}
+
+.nova-mic-glow.speaking {
+  box-shadow: 0 0 40px 10px #0000ff, 0 0 80px 30px #0000ff; /* Blue glow for speaking */
+  animation: pulse-blue-glow 1.5s infinite ease-in-out;
+}
+
+/* Default or idle state glow */
+.nova-mic-glow {
+  box-shadow: 0 0 20px 5px rgba(0, 255, 247, 0.3), 0 0 40px 15px rgba(0, 255, 247, 0.1); /* Subtle default glow */
+  animation: none; /* No animation when idle */
+}
+
+@keyframes pulse-green-glow {
+  0% { box-shadow: 0 0 40px 10px #00ff00, 0 0 80px 30px #00ff00; }
+  50% { box-shadow: 0 0 60px 15px #00ff00, 0 0 100px 40px #00ff00; }
+  100% { box-shadow: 0 0 40px 10px #00ff00, 0 0 80px 30px #00ff00; }
+}
+
+@keyframes pulse-cyan-glow {
+  0% { box-shadow: 0 0 40px 10px #00ffff, 0 0 80px 30px #00ffff; }
+  50% { box-shadow: 0 0 60px 15px #00ffff, 0 0 100px 40px #00ffff; }
+  100% { box-shadow: 0 0 40px 10px #00ffff, 0 0 80px 30px #00ffff; }
+}
+
+@keyframes pulse-blue-glow {
+  0% { box-shadow: 0 0 40px 10px #0000ff, 0 0 80px 30px #0000ff; }
+  50% { box-shadow: 0 0 60px 15px #0000ff, 0 0 100px 40px #0000ff; }
+  100% { box-shadow: 0 0 40px 10px #0000ff, 0 0 80px 30px #0000ff; }
+}
+
+.camera-feed-overlay.fade-in {
+  opacity: 1;
+  pointer-events: auto; /* Enable clicks when visible */
+}
+
+.camera-feed-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.captured-image,
+.received-image {
+  max-width: 90%;
+  max-height: 90%;
+  border: 2px solid white;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+}
+
+.received-image-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001; /* Ensure it's above the self camera feed overlay */
+  opacity: 0;
+  pointer-events: none; /* Allow clicks to pass through when hidden */
+  transition: opacity 0.5s ease-in-out;
+}
+
+.received-image-overlay.fade-in {
+  opacity: 1;
+  pointer-events: auto; /* Enable clicks when visible */
+}
+
+.received-image-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 40px 10px #0000ff, 0 0 80px 30px #0000ff; }
+  50% { box-shadow: 0 0 60px 15px #00fff7, 0 0 100px 40px #00fff7; }
+  100% { box-shadow: 0 0 40px 10px #00fff7, 0 0 80px 30px #00fff7; }
+}
+
+.nova-bg {
+  animation: pulse-glow 3s infinite alternate;
+}
+
+.nova-text {
+  animation: pulse-text 3s infinite alternate;
+}
+
+@keyframes pulse-text {
+  0% { color: #0000ff; }
+  50% { color: #00fff7; }
+  100% { color: #00fff7; }
 }
 
 .camera-feed-overlay.fade-in {

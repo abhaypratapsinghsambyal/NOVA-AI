@@ -23,10 +23,24 @@ function App() {
   const [showImageProcessingPopup, setShowImageProcessingPopup] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
 
+  // Add logging for state changes
+  useEffect(() => {
+    console.log('State Update: showImageProcessingPopup =', showImageProcessingPopup);
+  }, [showImageProcessingPopup]);
+
+  useEffect(() => {
+    console.log('State Update: generatedImageUrl =', generatedImageUrl);
+  }, [generatedImageUrl]);
+
+  useEffect(() => {
+    console.log('State Update: aiStatus =', aiStatus);
+  }, [aiStatus]);
+
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
   const waveformRef = useRef(null);
   const isProcessingRef = useRef(false);
+  const recognitionErrorOccurredRef = useRef(false);
 
   // Initialize shared memory system
   const initializeSharedMemory = () => {
@@ -109,7 +123,7 @@ function App() {
   }, [isAuthenticated]);
 
   // Speech synthesis function
-  const speak = (text, isStreaming = false) => {
+  const speak = (text, startListeningCallback = null, isStreaming = false) => {
     console.log(`Speaking: "${text}", streaming: ${isStreaming}`);
     
     if (!voiceReady || !novaVoice) {
@@ -121,234 +135,381 @@ function App() {
       synthRef.current.cancel();
     }
 
-    const utter = new window.SpeechSynthesisUtterance(text);
-    if (novaVoice) utter.voice = novaVoice;
-    utter.rate = 1.02;
-    utter.pitch = 1.1;
+    // Split long text into smaller chunks (e.g., by sentences or a character limit)
+    // This is a simple split by sentence-ending punctuation followed by a space.
+    // More sophisticated splitting might be needed for complex texts.
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+    const chunks = [];
+    let currentChunk = '';
+    const maxChunkLength = 200; // Example character limit per chunk
 
-    if (!isStreaming) {
-      utter.onend = () => {
-        console.log('Speech ended');
-        setIsFadingIn(false);
-        setIsFadingOut(true);
-        setTimeout(() => {
-          setCapturedImage(null);
-          setIsFadingOut(false);
-          setAiStatus('idle');
-          isProcessingRef.current = false;
-          startListening();
-        }, 500);
-      };
+    for (const sentence of sentences) {
+      if (currentChunk.length + sentence.length > maxChunkLength) {
+        chunks.push(currentChunk.trim());
+        currentChunk = sentence;
+      } else {
+        currentChunk += sentence;
+      }
+    }
+    if (currentChunk) {
+      chunks.push(currentChunk.trim());
     }
 
-    utter.onerror = (event) => {
-      console.error('Speech synthesis error:', event.error);
-      setAiStatus('idle');
-      isProcessingRef.current = false;
-      startListening();
-    };
-
-    synthRef.current.speak(utter);
+    // Set speaking state before starting speech
     if (!isStreaming) {
       setAiStatus('speaking');
     }
-    animateWaveform(1);
-  };
 
-  // Start listening function
-  const startListening = () => {
-    if (!recognitionRef.current || aiStatus !== 'idle' || isProcessingRef.current) {
-      console.log('Cannot start listening:', { 
-        hasRecognition: !!recognitionRef.current, 
-        status: aiStatus, 
-        processing: isProcessingRef.current 
-      });
-      return;
-    }
+    let chunkIndex = 0;
 
-    try {
-      console.log('Starting speech recognition...');
-      recognitionRef.current.start();
-    } catch (error) {
-      console.error('Error starting recognition:', error);
-      setTimeout(startListening, 1000);
-    }
+    const speakNextChunk = () => {
+      if (chunkIndex < chunks.length) {
+        const utter = new window.SpeechSynthesisUtterance(chunks[chunkIndex]);
+        if (novaVoice) utter.voice = novaVoice;
+        utter.rate = 1.02; // Normal speed
+        utter.pitch = 1.1;
+
+        utter.onend = () => {
+          console.log(`Chunk ${chunkIndex + 1}/${chunks.length} spoken.`);
+          chunkIndex++;
+          speakNextChunk(); // Speak the next chunk
+        };
+
+        utter.onerror = (event) => {
+          console.error('Speech synthesis error:', event.error);
+          isProcessingRef.current = false;
+          // On synthesis error, attempt to restart listening
+          console.log('Attempting to restart listening after speech synthesis error.');
+          setAiStatus('listening'); // Try to go back to listening on error
+          if (recognitionRef.current) {
+            startListening();
+          } else {
+            setAiStatus('idle'); // Fallback to idle if cannot restart listening
+          }
+        };
+
+        synthRef.current.speak(utter);
+      } else {
+        // All chunks spoken
+        console.log('All speech chunks ended.');
+        setIsFadingIn(false);
+        setIsFadingOut(true);
+        
+        setTimeout(() => {
+          setCapturedImage(null);
+          setIsFadingOut(false);
+          isProcessingRef.current = false;
+
+          // Always transition to listening after speech ends
+          console.log('Transitioning to listening after speech end.');
+          setAiStatus('listening');
+
+          // Attempt to restart recognition after a short delay
+          if (recognitionRef.current) {
+             console.log('Attempting to restart recognition after speech end.');
+             // No delay needed here, startListening has its own checks
+            
+          }
+        }, 500); // Delay for image fade out
+      }
+    };
+
+    speakNextChunk(); // Start speaking the first chunk
   };
 
   // Initialize speech recognition
   useEffect(() => {
-    if (!isAuthenticated || !('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    if (!voiceReady || !isAuthenticated) return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.error('Speech recognition not supported');
+      speak('Speech recognition is not supported in your browser.');
       return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
     recognition.lang = 'en-US';
     recognitionRef.current = recognition;
 
-    recognition.onstart = () => {
-      console.log('Recognition started');
+    // Define startListening inside App so it is always in scope
+    const startListening = () => {
+      if (!voiceReady || !isAuthenticated) return;
+      if (!recognitionRef.current) {
+        console.error('Speech recognition not supported or not initialized.');
+        speak('Speech recognition is not supported in your browser.');
+        return;
+      }
+      const recognition = recognitionRef.current;
+      if (isProcessingRef.current) {
+        console.log('Still processing previous command, skipping new recognition start.');
+        return;
+      }
+      if (recognition.recognizing) {
+        console.log('Speech recognition already recognizing, not starting again.');
+        return;
+      }
+      try {
+        console.log('Attempting to start speech recognition...');
+        recognition.start();
+        setAiStatus('listening');
+      } catch (error) {
+        console.error('Error starting speech recognition:', error);
+        if (error.name === 'InvalidStateError') {
+          console.log('Start failed with InvalidStateError. Relying on onend to restart.');
+        } else {
+          speak(`Error starting speech recognition: ${error.message}`, startListening);
+          setAiStatus('idle');
+        }
+      }
+    };
+
+    recognition.onend = () => {
+       console.log('Speech recognition ended');
+       // Handle recognition end states
+      if (recognitionErrorOccurredRef.current) {
+        console.log('Recognition ended after an error, not restarting automatically.');
+        recognitionErrorOccurredRef.current = false;
+        if (!synthRef.current.speaking) {
+          setAiStatus('idle');
+        }
+        isProcessingRef.current = false;
+        return;
+      }
+
+      // If recognition ends while speaking, the speak onend handler will manage the state transition and restart.
+      if (synthRef.current.speaking) {
+        console.log('Recognition ended while speaking, deferring restart to speak onend.');
+        return;
+      }
+
+      // If recognition ends while processing (API call or speaking), do not restart immediately.
+      // The processing logic or speak onend will handle the next state and restart.
+      if (isProcessingRef.current) {
+         console.log('Recognition ended while processing, not restarting.');
+         // State is already 'processing' or will be set by speak
+         return;
+      }
+
+      // If recognition ends cleanly or timed out and not processing, attempt restart.
+      console.log('Recognition ended cleanly or timed out, attempting restart.');
+      // Set status to listening before attempting restart
       setAiStatus('listening');
+      // No delay needed here, startListening has its own checks
+      startListening();
     };
 
     recognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
-      setAiStatus('idle');
+      recognitionErrorOccurredRef.current = true; // Set the flag on error
       isProcessingRef.current = false;
-      setTimeout(startListening, 1000);
-    };
 
-    recognition.onend = () => {
-      console.log('Recognition ended');
-      if (aiStatus === 'listening') {
-        setAiStatus('idle');
-        setTimeout(startListening, 500);
+      // Attempt to transition to listening state on most errors to try and recover
+      if (event.error !== 'aborted' && event.error !== 'not-allowed') {
+         setAiStatus('listening');
+      } else {
+         setAiStatus('idle'); // Stay idle for critical errors like not-allowed or aborted
+      }
+
+      if (event.error === 'not-allowed') {
+        speak('Microphone access was denied. Please enable microphone access to use voice commands.', startListening);
+      } else if (event.error === 'no-speech') {
+        console.log('No speech detected, restarting after delay...');
+        setTimeout(() => {
+          startListening();
+        }, 500);
+      } else if (event.error === 'audio-capture') {
+        console.error('Audio capture error.');
+        speak('Audio capture error. Please check your microphone.', startListening);
+      } else if (event.error === 'network') {
+        console.error('Network error during speech recognition.');
+        speak('Network error during speech recognition. Please check your connection.', startListening);
+      } else if (event.error === 'aborted') {
+        console.log('Recognition aborted, not restarting automatically.');
+        // Do not automatically restart on 'aborted' error
+      } else {
+        speak(`Speech recognition error: ${event.error}`, startListening);
       }
     };
 
-    recognition.onresult = async (event) => {
-      const transcript = event.results[event.results.length - 1][0].transcript;
-      console.log('Transcript:', transcript);
-      
-      isProcessingRef.current = true;
-      setAiStatus('processing');
+    recognition.onresult = (event) => {
+      const processTranscript = async () => {
+        try {
+          const lastResult = event.results[event.results.length - 1];
+          if (!lastResult.isFinal) return;
 
-      let capturedImageData = null;
-
-      // Handle camera commands
-      if (transcript.toLowerCase().includes('show me my camera') ||
-          transcript.toLowerCase().includes('show my camera') ||
-          transcript.toLowerCase().includes('show me my pic')) {
-        const imageDataUrl = captureFrame();
-        if (imageDataUrl) {
-          setCapturedImage(imageDataUrl);
-          setIsFadingIn(true);
-          // Format image data for Gemini API
-          const [mimeType, base64Data] = imageDataUrl.split(';base64,');
-          capturedImageData = {
-            mimeType: mimeType.split(':')[1],
-            data: base64Data
-          };
-        }
-      }
-
-      // Handle sharing commands
-      if (transcript.toLowerCase().includes('share my camera') ||
-          transcript.toLowerCase().includes('share my pic')) {
-        const imageDataUrl = captureFrame();
-        if (imageDataUrl && currentUser) {
-          // Note: Sharing image memory directly saves the data URL string.
-          // If Gemini needs the structured format for sharing commands too,
-          // this part might need adjustment.
-          cloudStorage.saveImageMemory(currentUser.uid, imageDataUrl);
-          speak("I've shared your camera feed.");
-          return;
-        } else {
-          cloudStorage.saveImageMemory(currentUser.uid, capturedImageData);
-          speak("I've shared your camera feed.");
-          return;
-        }
-      }
-
-      try {
-        // Use Gemini for all conversational and image/memory queries
-        // Call Gemini for any transcript that isn't a camera/share command
-        if (!transcript.toLowerCase().includes('show me my camera') &&
-            !transcript.toLowerCase().includes('show my camera') &&
-            !transcript.toLowerCase().includes('show me my pic') &&
-            !transcript.toLowerCase().includes('share my camera') &&
-            !transcript.toLowerCase().includes('share my pic')) {
-
-          let generateImage = false;
-          if (transcript.toLowerCase().includes('generate image') || transcript.toLowerCase().includes('create image')) {
-            generateImage = true;
-            setShowImageProcessingPopup(true);
+          const transcript = lastResult[0].transcript.toLowerCase().trim();
+          if (!transcript) {
+            console.log('Empty transcript, ignoring');
+            return;
           }
 
-          const { aiResponse, generatedImage } = await callGeminiAPI(transcript, capturedImageData, generateImage);
+          console.log('Processing transcript:', transcript);
+          isProcessingRef.current = true;
+          setAiStatus('processing');
 
-          if (generatedImage) {
-            setGeneratedImageUrl(generatedImage);
-            setShowImageProcessingPopup(false);
-          } else {
-            // speak(aiResponse); // Removed incorrect speak call
+          try {
+            // Handle camera commands
+            if (transcript.includes('show me my camera') ||
+                transcript.includes('show my camera') ||
+                transcript.includes('show me my pic')) {
+              const imageDataUrl = captureFrame();
+              if (imageDataUrl) {
+                setCapturedImage(imageDataUrl);
+                setIsFadingIn(true);
+              }
+              return;
+            }
+
+            // Handle sharing commands
+            if (transcript.includes('share my camera') ||
+                transcript.includes('share my pic')) {
+              const imageDataUrl = captureFrame();
+              if (imageDataUrl && currentUser) {
+                await cloudStorage.saveImageMemory(currentUser.uid, imageDataUrl);
+                speak("I've shared your camera feed.", startListening);
+              }
+              return;
+            }
+
+            // Handle image generation
+            if (transcript.includes('generate image') || 
+                transcript.includes('create image')) {
+              setShowImageProcessingPopup(true);
+              console.log('Calling callGeminiAPI for image generation with transcript:', transcript); // Added log
+              const response = await callGeminiAPI(transcript, null, true);
+              console.log('Response from callGeminiAPI for image generation:', response); // Added log
+              if (response?.generatedImage) {
+                setGeneratedImageUrl(response.generatedImage);
+                speak('I have generated the image for you.', startListening);
+              }
+              setShowImageProcessingPopup(false);
+              return;
+            }
+
+            // Handle general conversation
+            console.log('Calling callGeminiAPI with transcript:', transcript); // Added log
+            const response = await callGeminiAPI(transcript);
+            console.log('Response from callGeminiAPI:', response); // Added log
+            if (response?.text) {
+              speak(response.text);
+            } else {
+              speak('I apologize, but I encountered an error processing your request.', startListening);
+            }
+          } catch (error) {
+            console.error('Error processing transcript:', error);
+            speak('Sorry, there was an error processing your command.', startListening);
+          } finally {
+            isProcessingRef.current = false;
+            // State transition after processing is handled by speak's onend or recognition's onend
+            // Ensure state is set to processing while speaking, and listening after speaking ends
+            if (!synthRef.current.speaking) {
+              setAiStatus('listening');
+              // Attempt to restart recognition immediately after processing if not speaking
+              if (recognitionRef.current) {
+                 console.log('Attempting to restart recognition after processing.');
+                 startListening();
+              }
+            }
           }
-          speak(aiResponse.aiResponse);
+        } catch (error) {
+          console.error('Error in processTranscript:', error);
+          isProcessingRef.current = false;
+          setAiStatus('idle');
         }
-      } catch (error) {
-        console.error('Error processing request:', error);
-        speak("Sorry, I encountered an error processing your request.");
-      }
-    }; // Added closing brace and parenthesis for onresult handler
+      };
 
-    // Start listening when voice is ready
-    if (voiceReady) {
-      setTimeout(startListening, 1000);
-    }
+      processTranscript();
+    };
 
+    recognition.onstart = () => {
+      console.log('Speech recognition started');
+      setAiStatus('listening');
+    };
+
+    // Initialize recognition after a delay
+    const initTimeout = setTimeout(() => {
+      startListening();
+    }, 1000);
+
+    // Cleanup function
     return () => {
+      clearTimeout(initTimeout);
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
-    }; // Added closing parenthesis for useEffect
-  }, [voiceReady, isAuthenticated]);
+    };
+  }, [voiceReady, isAuthenticated, currentUser]); // Dependencies array
 
-  // Animate waveform
-  const animateWaveform = (level) => {
-    setAudioLevel(level);
-    setTimeout(() => setAudioLevel(0), 700);
-  };
 
-  // Start camera when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      startCamera().catch(console.error);
-    }
-  }, [isAuthenticated]);
 
-  // Show login if not authenticated
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
+// Start camera when authenticated
+useEffect(() => {
+  if (isAuthenticated) {
+    startCamera().catch(console.error);
   }
+}, [isAuthenticated]);
 
-  const closeGeneratedImage = () => {
-    setGeneratedImageUrl(null);
-  };
-
-  return (
-    <div className="App">
-      {/* Image Processing Popup */}
-      {showImageProcessingPopup && (
-        <div className="image-processing-popup">
-          <div className="processing-indicator">Processing Image...</div>
-        </div>
-      )}
-
-      {/* Generated Image Fullscreen View */}
-      {generatedImageUrl && (
-        <div className="generated-image-fullscreen">
-          <button className="close-button" onClick={closeGeneratedImage}>X</button>
-          <img src={generatedImageUrl} alt="Generated by AI" />
-          <button className="download-button" onClick={() => {
-            const link = document.createElement('a');
-            link.href = generatedImageUrl;
-            link.download = 'generated_image.jpg'; // Or a more dynamic name
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }}>Download Image</button>
-        </div>
-      )}
-
-      {/* Existing App content */}
-      <header className="App-header">
-        {/* ... existing header content ... */}
-      </header>
-      <div style={{ color: 'red', fontSize: '30px', zIndex: 4000, position: 'relative' }}>Main App Content Placeholder</div>
-    </div>
-  );
+// Show login if not authenticated
+if (!isAuthenticated) {
+  return <Login onLogin={handleLogin} />;
 }
 
+const closeGeneratedImage = () => {
+  setGeneratedImageUrl(null)
+}
+
+return (
+  <div className={`App nova-bg ${aiStatus}`}>
+    <div className="nova-center">
+      {/* User Header */}
+      <div className="user-header">
+        <div className="user-info">
+          <div className="user-name">{currentUser?.displayName || 'Guest'}</div>
+          <div className="user-status">{aiStatus}</div>
+        </div>
+        {isAuthenticated && (
+          <button className="logout-button" onClick={handleLogout}>Logout</button>
+        )}
+      </div>
+  
+      {/* NOVA Interface */}
+      {isAuthenticated ? (
+        <>
+          <div className={`nova-waveform ${aiStatus}`} ref={waveformRef}>
+            <div className={`nova-mic-glow ${aiStatus}`}></div>
+            <div className={`nova-title ${aiStatus}`}>NOVA</div>
+          </div>
+          {/* Image Processing Popup */}
+          {showImageProcessingPopup && (
+            <div className="image-processing-popup">
+              <div className="processing-indicator">Processing Image...</div>
+            </div>
+          )}
+  
+          {/* Generated Image Fullscreen View */}
+          {generatedImageUrl && (
+            <div className="generated-image-fullscreen">
+              <button className="close-button" onClick={() => setGeneratedImageUrl(null)}>X</button>
+              <img src={generatedImageUrl} alt="Generated by AI" />
+              <button className="download-button" onClick={() => {
+                const link = document.createElement('a');
+                link.href = generatedImageUrl;
+                link.download = 'generated_image.jpg';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}>Download Image</button>
+            </div>
+          )}
+        </>
+      ) : (
+        <Login onLogin={handleLogin} />
+      )}
+    </div>
+  </div>
+)
+}
 export default App;
